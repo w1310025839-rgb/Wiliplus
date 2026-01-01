@@ -1,0 +1,851 @@
+﻿import 'package:PiliPlus/common/widgets/image/network_img_layer.dart';
+import 'package:PiliPlus/models/model_owner.dart';
+import 'package:PiliPlus/models_new/fav/fav_detail/media.dart';
+import 'package:PiliPlus/models_new/fav/fav_folder/list.dart';
+import 'package:PiliPlus/pages/music_player/controller.dart';
+import 'package:PiliPlus/utils/page_utils.dart';
+import 'package:flutter/material.dart';
+import 'package:flutter_smart_dialog/flutter_smart_dialog.dart';
+import 'package:get/get.dart';
+import 'package:media_kit_video/media_kit_video.dart';
+
+class MusicPlayerPage extends StatefulWidget {
+  const MusicPlayerPage({super.key});
+
+  @override
+  State<MusicPlayerPage> createState() => _MusicPlayerPageState();
+}
+
+class _MusicPlayerPageState extends State<MusicPlayerPage> {
+  late final MusicPlayerController controller;
+  late final PageController _pageController;
+
+  @override
+  void initState() {
+    super.initState();
+    controller = Get.put(MusicPlayerController());
+    _pageController = PageController(initialPage: controller.showMV.value ? 1 : 0);
+  }
+
+  @override
+  void dispose() {
+    _pageController.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final size = MediaQuery.sizeOf(context);
+    return Scaffold(
+      backgroundColor: theme.colorScheme.surface,
+      body: SafeArea(
+        child: Column(
+          children: [
+            _buildTopBar(theme),
+            Expanded(
+              child: _buildSwipeableContent(theme, size),
+            ),
+            _buildPageIndicator(theme),
+            _buildSongInfo(theme),
+            _buildProgressBar(theme),
+            _buildControls(theme),
+            _buildBottomBar(theme),
+            const SizedBox(height: 20),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildTopBar(ThemeData theme) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+      child: Row(
+        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+        children: [
+          IconButton(
+            icon: const Icon(Icons.keyboard_arrow_down, size: 28),
+            onPressed: Get.back,
+          ),
+          Obx(() => Text(
+            controller.showMV.value ? 'MV模式' : '封面模式',
+            style: TextStyle(
+              color: theme.colorScheme.onSurface,
+              fontWeight: FontWeight.w500,
+            ),
+          )),
+          IconButton(
+            icon: const Icon(Icons.music_note_outlined),
+            onPressed: _navigateToMusicZone,
+            tooltip: '音乐分区',
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildSwipeableContent(ThemeData theme, Size size) {
+    return PageView(
+      controller: _pageController,
+      onPageChanged: (index) {
+        if (index == 0 && controller.showMV.value) {
+          controller.toggleMVDisplay();
+        } else if (index == 1 && !controller.showMV.value) {
+          controller.toggleMVDisplay();
+        }
+      },
+      children: [
+        _buildCoverView(theme, size),
+        _buildMVView(theme, size),
+      ],
+    );
+  }
+
+  Widget _buildPageIndicator(ThemeData theme) {
+    return Obx(() => Padding(
+      padding: const EdgeInsets.symmetric(vertical: 8),
+      child: Row(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          _buildIndicatorDot(theme, !controller.showMV.value),
+          const SizedBox(width: 8),
+          _buildIndicatorDot(theme, controller.showMV.value),
+        ],
+      ),
+    ));
+  }
+
+  Widget _buildIndicatorDot(ThemeData theme, bool isActive) {
+    return AnimatedContainer(
+      duration: const Duration(milliseconds: 200),
+      width: isActive ? 24 : 8,
+      height: 8,
+      decoration: BoxDecoration(
+        color: isActive ? theme.colorScheme.primary : theme.colorScheme.outline.withValues(alpha: 0.3),
+        borderRadius: BorderRadius.circular(4),
+      ),
+    );
+  }
+
+  Widget _buildCoverView(ThemeData theme, Size size) {
+    return Obx(() {
+      final music = controller.currentMusic.value;
+      if (music == null) {
+        return Center(
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              Icon(Icons.music_note, size: 80, color: theme.colorScheme.outline),
+              const SizedBox(height: 16),
+              Text('暂无播放内容', style: TextStyle(color: theme.colorScheme.outline)),
+              const SizedBox(height: 24),
+              ElevatedButton.icon(
+                onPressed: _navigateToMusicZone,
+                icon: const Icon(Icons.library_music),
+                label: const Text('浏览音乐分区'),
+              ),
+            ],
+          ),
+        );
+      }
+      final coverSize = size.width * 0.75;
+      return Center(
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Container(
+              width: coverSize,
+              height: coverSize,
+              decoration: BoxDecoration(
+                borderRadius: BorderRadius.circular(12),
+                boxShadow: [
+                  BoxShadow(
+                    color: theme.colorScheme.shadow.withValues(alpha: 0.3),
+                    blurRadius: 30,
+                    offset: const Offset(0, 15),
+                  ),
+                ],
+              ),
+              child: ClipRRect(
+                borderRadius: BorderRadius.circular(12),
+                child: Stack(
+                  alignment: Alignment.center,
+                  children: [
+                    NetworkImgLayer(src: music.cover, width: coverSize, height: coverSize),
+                    if (controller.isLoadingVideo.value || controller.isBuffering.value)
+                      Container(
+                        color: Colors.black.withValues(alpha: 0.3),
+                        child: const CircularProgressIndicator(color: Colors.white),
+                      ),
+                  ],
+                ),
+              ),
+            ),
+            const SizedBox(height: 16),
+            Text(
+              '封面模式 - 仅播放音频',
+              style: TextStyle(color: theme.colorScheme.outline, fontSize: 12),
+            ),
+            const SizedBox(height: 8),
+            Text(
+              ' 左右滑动切换MV ',
+              style: TextStyle(color: theme.colorScheme.outline.withValues(alpha: 0.5), fontSize: 11),
+            ),
+          ],
+        ),
+      );
+    });
+  }
+
+  Widget _buildMVView(ThemeData theme, Size size) {
+    return Obx(() {
+      final music = controller.currentMusic.value;
+      if (music == null) return _buildCoverView(theme, size);
+      
+      final isAlbumRatio = controller.isAlbumRatio.value;
+      final videoWidth = size.width * 0.9;
+      final videoHeight = isAlbumRatio ? videoWidth * 1.5 : videoWidth * 0.5625;
+      final videoCtrl = controller.videoController;
+      
+      return Center(
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            // 视频比例选择按钮
+            Padding(
+              padding: const EdgeInsets.only(bottom: 12),
+              child: Row(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  _buildRatioButton(theme, '16:9', !isAlbumRatio),
+                  const SizedBox(width: 12),
+                  _buildRatioButton(theme, '2:3', isAlbumRatio),
+                ],
+              ),
+            ),
+            GestureDetector(
+              onTap: () => _goToFullVideoPage(music),
+              child: Container(
+                width: videoWidth,
+                height: videoHeight,
+                decoration: BoxDecoration(
+                  borderRadius: BorderRadius.circular(12),
+                  color: Colors.black,
+                ),
+                child: Stack(
+                  alignment: Alignment.center,
+                  children: [
+                    if (videoCtrl != null)
+                      ClipRRect(
+                        borderRadius: BorderRadius.circular(12),
+                        child: isAlbumRatio
+                            ? _buildAlbumRatioVideo(videoCtrl, videoWidth, videoHeight)
+                            : Video(controller: videoCtrl, controls: NoVideoControls, fill: Colors.black),
+                      )
+                    else
+                      ClipRRect(
+                        borderRadius: BorderRadius.circular(12),
+                        child: NetworkImgLayer(src: music.cover, width: videoWidth, height: videoHeight),
+                      ),
+                    if (controller.isLoadingVideo.value || controller.isBuffering.value)
+                      Container(
+                        decoration: BoxDecoration(
+                          color: Colors.black.withValues(alpha: 0.5),
+                          borderRadius: BorderRadius.circular(12),
+                        ),
+                        child: const CircularProgressIndicator(color: Colors.white),
+                      ),
+                    Positioned(
+                      right: 8,
+                      bottom: 8,
+                      child: Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                        decoration: BoxDecoration(
+                          color: Colors.black.withValues(alpha: 0.6),
+                          borderRadius: BorderRadius.circular(4),
+                        ),
+                        child: const Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            Icon(Icons.fullscreen, color: Colors.white, size: 16),
+                            SizedBox(width: 4),
+                            Text('全屏', style: TextStyle(color: Colors.white, fontSize: 12)),
+                          ],
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+            const SizedBox(height: 8),
+            Text(
+              ' 左右滑动切换封面 ',
+              style: TextStyle(color: theme.colorScheme.outline.withValues(alpha: 0.5), fontSize: 11),
+            ),
+          ],
+        ),
+      );
+    });
+  }
+
+  Widget _buildRatioButton(ThemeData theme, String label, bool isActive) {
+    return GestureDetector(
+      onTap: controller.toggleVideoRatio,
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 6),
+        decoration: BoxDecoration(
+          color: isActive ? theme.colorScheme.primary : theme.colorScheme.surfaceContainerHighest,
+          borderRadius: BorderRadius.circular(16),
+        ),
+        child: Text(
+          label,
+          style: TextStyle(
+            color: isActive ? theme.colorScheme.onPrimary : theme.colorScheme.onSurface,
+            fontSize: 12,
+            fontWeight: FontWeight.w500,
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildAlbumRatioVideo(VideoController videoCtrl, double width, double height) {
+    return SizedBox(
+      width: width,
+      height: height,
+      child: FittedBox(
+        fit: BoxFit.cover,
+        clipBehavior: Clip.hardEdge,
+        child: SizedBox(
+          width: width,
+          height: width * 0.5625,
+          child: Video(controller: videoCtrl, controls: NoVideoControls, fill: Colors.black),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildSongInfo(ThemeData theme) {
+    return Obx(() {
+      final music = controller.currentMusic.value;
+      return Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 8),
+        child: Column(
+          children: [
+            Text(
+              music?.title ?? '未知歌曲',
+              style: theme.textTheme.titleLarge?.copyWith(fontWeight: FontWeight.bold),
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+              textAlign: TextAlign.center,
+            ),
+            const SizedBox(height: 4),
+            Text(
+              music?.artist ?? '未知艺术家',
+              style: TextStyle(color: theme.colorScheme.outline, fontSize: 14),
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+            ),
+          ],
+        ),
+      );
+    });
+  }
+
+  Widget _buildProgressBar(ThemeData theme) {
+    return Obx(() {
+      final prog = controller.progress.value;
+      final dur = controller.duration.value;
+      return Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 24),
+        child: Column(
+          children: [
+            SliderTheme(
+              data: SliderThemeData(
+                trackHeight: 4,
+                thumbShape: const RoundSliderThumbShape(enabledThumbRadius: 6),
+                overlayShape: const RoundSliderOverlayShape(overlayRadius: 14),
+                activeTrackColor: theme.colorScheme.primary,
+                inactiveTrackColor: theme.colorScheme.outline.withValues(alpha: 0.2),
+                thumbColor: theme.colorScheme.primary,
+              ),
+              child: Slider(
+                value: dur > 0 ? prog.clamp(0, dur) : 0,
+                max: dur > 0 ? dur : 1,
+                onChanged: controller.seekTo,
+              ),
+            ),
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 8),
+              child: Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  Text(_formatDuration(prog), style: TextStyle(color: theme.colorScheme.outline, fontSize: 12)),
+                  Text(_formatDuration(dur), style: TextStyle(color: theme.colorScheme.outline, fontSize: 12)),
+                ],
+              ),
+            ),
+          ],
+        ),
+      );
+    });
+  }
+
+  String _formatDuration(double seconds) {
+    final dur = Duration(seconds: seconds.toInt());
+    final mins = dur.inMinutes;
+    final secs = dur.inSeconds % 60;
+    return '${mins.toString().padLeft(2, '0')}:${secs.toString().padLeft(2, '0')}';
+  }
+
+  Widget _buildControls(ThemeData theme) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 16),
+      child: Row(
+        mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+        children: [
+          Obx(() => IconButton(
+            icon: Icon(controller.isShuffleMode.value ? Icons.shuffle_on_outlined : Icons.shuffle),
+            onPressed: controller.toggleShuffle,
+            color: controller.isShuffleMode.value ? theme.colorScheme.primary : null,
+          )),
+          IconButton(
+            icon: const Icon(Icons.skip_previous, size: 36),
+            onPressed: controller.playPrevious,
+          ),
+          Obx(() => Container(
+            width: 64,
+            height: 64,
+            decoration: BoxDecoration(
+              shape: BoxShape.circle,
+              color: theme.colorScheme.primary,
+            ),
+            child: IconButton(
+              icon: Icon(
+                controller.isPlaying.value ? Icons.pause : Icons.play_arrow,
+                size: 32,
+                color: theme.colorScheme.onPrimary,
+              ),
+              onPressed: controller.togglePlay,
+            ),
+          )),
+          IconButton(
+            icon: const Icon(Icons.skip_next, size: 36),
+            onPressed: controller.playNext,
+          ),
+          Obx(() => IconButton(
+            icon: Icon(_getRepeatIcon(controller.repeatMode.value)),
+            onPressed: controller.toggleRepeatMode,
+            color: controller.repeatMode.value != 0 ? theme.colorScheme.primary : null,
+          )),
+        ],
+      ),
+    );
+  }
+
+  IconData _getRepeatIcon(int mode) {
+    switch (mode) {
+      case 1: return Icons.repeat_one;
+      case 2: return Icons.repeat_on;
+      default: return Icons.repeat;
+    }
+  }
+
+  Widget _buildBottomBar(ThemeData theme) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 24),
+      child: Row(
+        mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+        children: [
+          IconButton(icon: const Icon(Icons.favorite_border), onPressed: () => _showFavFoldersSheet(theme), tooltip: '收藏'),
+          IconButton(icon: const Icon(Icons.playlist_play), onPressed: () => _showPlaylistSheet(theme), tooltip: '播放列表'),
+          IconButton(icon: const Icon(Icons.folder_open), onPressed: () => _showBrowseFavFoldersSheet(theme), tooltip: '浏览收藏夹'),
+        ],
+      ),
+    );
+  }
+
+  void _navigateToMusicZone() {
+    Get.toNamed('/musicZone');
+  }
+
+  void _goToFullVideoPage(MusicItem music) {
+    if (music.mvBvid != null) {
+      PageUtils.toVideoPage(
+        bvid: music.mvBvid,
+        aid: music.mvAid,
+        cid: music.mvCid ?? 0,
+        cover: music.cover,
+        title: music.title,
+      );
+    }
+  }
+
+  void _showFavFoldersSheet(ThemeData theme) {
+    controller.loadFavFolders();
+    showModalBottomSheet(
+      context: context,
+      backgroundColor: theme.colorScheme.surface,
+      shape: const RoundedRectangleBorder(borderRadius: BorderRadius.vertical(top: Radius.circular(16))),
+      builder: (context) => _FavFoldersSheet(controller: controller, theme: theme),
+    );
+  }
+
+  void _showPlaylistSheet(ThemeData theme) {
+    showModalBottomSheet(
+      context: context,
+      backgroundColor: theme.colorScheme.surface,
+      isScrollControlled: true,
+      shape: const RoundedRectangleBorder(borderRadius: BorderRadius.vertical(top: Radius.circular(16))),
+      builder: (context) => _PlaylistSheet(controller: controller, theme: theme),
+    );
+  }
+
+  void _showBrowseFavFoldersSheet(ThemeData theme) {
+    controller.loadFavFolders();
+    showModalBottomSheet(
+      context: context,
+      backgroundColor: theme.colorScheme.surface,
+      isScrollControlled: true,
+      shape: const RoundedRectangleBorder(borderRadius: BorderRadius.vertical(top: Radius.circular(16))),
+      builder: (context) => _BrowseFavFoldersSheet(controller: controller, theme: theme),
+    );
+  }
+}
+
+class _FavFoldersSheet extends StatelessWidget {
+  final MusicPlayerController controller;
+  final ThemeData theme;
+  const _FavFoldersSheet({required this.controller, required this.theme});
+
+  @override
+  Widget build(BuildContext context) {
+    return SafeArea(
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Container(
+            width: 40, height: 4,
+            margin: const EdgeInsets.symmetric(vertical: 12),
+            decoration: BoxDecoration(color: theme.colorScheme.outline.withValues(alpha: 0.3), borderRadius: BorderRadius.circular(2)),
+          ),
+          Padding(
+            padding: const EdgeInsets.all(16),
+            child: Text('收藏到', style: theme.textTheme.titleMedium?.copyWith(fontWeight: FontWeight.bold)),
+          ),
+          Obx(() {
+            if (controller.isLoadingFolders.value) return const Padding(padding: EdgeInsets.all(32), child: CircularProgressIndicator());
+            if (controller.favFolders.isEmpty) return const Padding(padding: EdgeInsets.all(32), child: Text('暂无收藏夹'));
+            return ConstrainedBox(
+              constraints: BoxConstraints(maxHeight: MediaQuery.sizeOf(context).height * 0.4),
+              child: ListView.builder(
+                shrinkWrap: true,
+                itemCount: controller.favFolders.length,
+                itemBuilder: (context, index) {
+                  final folder = controller.favFolders[index];
+                  return ListTile(
+                    leading: const Icon(Icons.folder),
+                    title: Text(folder.title ?? ''),
+                    subtitle: Text('${folder.mediaCount ?? 0}个内容'),
+                    onTap: () async {
+                      final success = await controller.addToFavFolder(folder.id ?? 0);
+                      Navigator.pop(context);
+                      SmartDialog.showToast(success ? '收藏成功' : '收藏失败');
+                    },
+                  );
+                },
+              ),
+            );
+          }),
+          const SizedBox(height: 16),
+        ],
+      ),
+    );
+  }
+}
+
+class _PlaylistSheet extends StatelessWidget {
+  final MusicPlayerController controller;
+  final ThemeData theme;
+  const _PlaylistSheet({required this.controller, required this.theme});
+
+  @override
+  Widget build(BuildContext context) {
+    return DraggableScrollableSheet(
+      initialChildSize: 0.6, minChildSize: 0.3, maxChildSize: 0.9, expand: false,
+      builder: (context, scrollController) {
+        return Column(
+          children: [
+            Container(
+              width: 40, height: 4,
+              margin: const EdgeInsets.symmetric(vertical: 12),
+              decoration: BoxDecoration(color: theme.colorScheme.outline.withValues(alpha: 0.3), borderRadius: BorderRadius.circular(2)),
+            ),
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+              child: Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  Obx(() => Text('播放列表 (${controller.playlist.length})', style: theme.textTheme.titleMedium?.copyWith(fontWeight: FontWeight.bold))),
+                  TextButton(onPressed: () { controller.clearPlaylist(); Navigator.pop(context); }, child: const Text('清空')),
+                ],
+              ),
+            ),
+            const Divider(height: 1),
+            Expanded(
+              child: Obx(() {
+                if (controller.playlist.isEmpty) return const Center(child: Text('播放列表为空'));
+                return ListView.builder(
+                  controller: scrollController,
+                  itemCount: controller.playlist.length,
+                  itemBuilder: (context, index) {
+                    final music = controller.playlist[index];
+                    final isPlaying = controller.currentIndex.value == index;
+                    return ListTile(
+                      leading: ClipRRect(
+                        borderRadius: BorderRadius.circular(4),
+                        child: SizedBox(width: 48, height: 48, child: NetworkImgLayer(src: music.cover, width: 48, height: 48)),
+                      ),
+                      title: Text(music.title, maxLines: 1, overflow: TextOverflow.ellipsis, style: TextStyle(color: isPlaying ? theme.colorScheme.primary : null, fontWeight: isPlaying ? FontWeight.bold : null)),
+                      subtitle: Text(music.artist, maxLines: 1, overflow: TextOverflow.ellipsis),
+                      trailing: isPlaying ? Icon(Icons.equalizer, color: theme.colorScheme.primary) : IconButton(icon: const Icon(Icons.close, size: 20), onPressed: () => controller.removeFromPlaylist(index)),
+                      onTap: () { controller.playMusic(index); Navigator.pop(context); },
+                    );
+                  },
+                );
+              }),
+            ),
+          ],
+        );
+      },
+    );
+  }
+}
+
+class _BrowseFavFoldersSheet extends StatefulWidget {
+  final MusicPlayerController controller;
+  final ThemeData theme;
+  const _BrowseFavFoldersSheet({required this.controller, required this.theme});
+
+  @override
+  State<_BrowseFavFoldersSheet> createState() => _BrowseFavFoldersSheetState();
+}
+
+class _BrowseFavFoldersSheetState extends State<_BrowseFavFoldersSheet> {
+  FavFolderInfo? selectedFolder;
+
+  @override
+  Widget build(BuildContext context) {
+    return DraggableScrollableSheet(
+      initialChildSize: 0.7, minChildSize: 0.3, maxChildSize: 0.9, expand: false,
+      builder: (context, scrollController) {
+        return Column(
+          children: [
+            Container(
+              width: 40, height: 4,
+              margin: const EdgeInsets.symmetric(vertical: 12),
+              decoration: BoxDecoration(color: widget.theme.colorScheme.outline.withValues(alpha: 0.3), borderRadius: BorderRadius.circular(2)),
+            ),
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+              child: Row(
+                children: [
+                  if (selectedFolder != null)
+                    IconButton(icon: const Icon(Icons.arrow_back), onPressed: () => setState(() { selectedFolder = null; widget.controller.favFolderItems.clear(); })),
+                  Expanded(
+                    child: Text(
+                      selectedFolder?.title ?? '浏览收藏夹',
+                      style: widget.theme.textTheme.titleMedium?.copyWith(fontWeight: FontWeight.bold),
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                  ),
+                  if (selectedFolder != null)
+                    TextButton(
+                      onPressed: () { widget.controller.importFolderToPlaylist(); Navigator.pop(context); SmartDialog.showToast('已全部导入播放列表'); },
+                      child: const Text('全部导入'),
+                    ),
+                ],
+              ),
+            ),
+            const Divider(height: 1),
+            Expanded(child: selectedFolder == null ? _buildFolderList(scrollController) : _buildFolderItems(scrollController)),
+          ],
+        );
+      },
+    );
+  }
+
+  Widget _buildFolderList(ScrollController scrollController) {
+    return Obx(() {
+      if (widget.controller.isLoadingFolders.value) return const Center(child: CircularProgressIndicator());
+      if (widget.controller.favFolders.isEmpty) return const Center(child: Text('暂无收藏夹'));
+      return ListView.builder(
+        controller: scrollController,
+        itemCount: widget.controller.favFolders.length,
+        itemBuilder: (context, index) {
+          final folder = widget.controller.favFolders[index];
+          return ListTile(
+            leading: const Icon(Icons.folder),
+            title: Text(folder.title ?? ''),
+            subtitle: Text('${folder.mediaCount ?? 0}个内容'),
+            trailing: const Icon(Icons.chevron_right),
+            onTap: () {
+              setState(() => selectedFolder = folder);
+              widget.controller.loadFavFolderItems(folder.id ?? 0);
+            },
+          );
+        },
+      );
+    });
+  }
+
+  Widget _buildFolderItems(ScrollController scrollController) {
+    return Obx(() {
+      if (widget.controller.isLoadingFolderItems.value) return const Center(child: CircularProgressIndicator());
+      if (widget.controller.favFolderItems.isEmpty) return const Center(child: Text('收藏夹为空'));
+      return ListView.builder(
+        controller: scrollController,
+        itemCount: widget.controller.favFolderItems.length,
+        itemBuilder: (context, index) {
+          final item = widget.controller.favFolderItems[index];
+          return ListTile(
+            leading: ClipRRect(
+              borderRadius: BorderRadius.circular(4),
+              child: SizedBox(width: 64, height: 48, child: NetworkImgLayer(src: item.cover, width: 64, height: 48)),
+            ),
+            title: Text(item.title, maxLines: 2, overflow: TextOverflow.ellipsis),
+            subtitle: Text(item.artist, maxLines: 1, overflow: TextOverflow.ellipsis),
+            trailing: Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                IconButton(
+                  icon: const Icon(Icons.playlist_add),
+                  tooltip: '选择分P导入',
+                  onPressed: () => _showPartSelector(item),
+                ),
+                IconButton(
+                  icon: const Icon(Icons.add),
+                  tooltip: '添加到播放列表',
+                  onPressed: () { widget.controller.addToPlaylist(item); SmartDialog.showToast('已添加到播放列表'); },
+                ),
+              ],
+            ),
+            onTap: () {
+              widget.controller.addToPlaylist(item);
+              widget.controller.playMusic(widget.controller.playlist.length - 1);
+              Navigator.pop(context);
+            },
+          );
+        },
+      );
+    });
+  }
+
+  Future<void> _showPartSelector(MusicItem item) async {
+    if (item.mvBvid == null) {
+      SmartDialog.showToast('无法获取视频信息');
+      return;
+    }
+
+    final parts = await widget.controller.loadVideoParts(item.mvBvid!);
+    if (parts == null || parts.length <= 1) {
+      widget.controller.addToPlaylist(item);
+      SmartDialog.showToast('该视频只有一个分P，已添加到播放列表');
+      return;
+    }
+
+    if (!mounted) return;
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: widget.theme.colorScheme.surface,
+      shape: const RoundedRectangleBorder(borderRadius: BorderRadius.vertical(top: Radius.circular(16))),
+      builder: (context) => _PartSelectorSheet(item: item, controller: widget.controller, theme: widget.theme),
+    );
+  }
+}
+
+class _PartSelectorSheet extends StatelessWidget {
+  final MusicItem item;
+  final MusicPlayerController controller;
+  final ThemeData theme;
+  const _PartSelectorSheet({required this.item, required this.controller, required this.theme});
+
+  @override
+  Widget build(BuildContext context) {
+    final favItem = FavDetailItemModel(id: item.mvAid, bvid: item.mvBvid, title: item.title, cover: item.cover, upper: Owner(name: item.artist));
+    return DraggableScrollableSheet(
+      initialChildSize: 0.6, minChildSize: 0.3, maxChildSize: 0.9, expand: false,
+      builder: (context, scrollController) {
+        return Column(
+          children: [
+            Container(
+              width: 40, height: 4,
+              margin: const EdgeInsets.symmetric(vertical: 12),
+              decoration: BoxDecoration(color: theme.colorScheme.outline.withValues(alpha: 0.3), borderRadius: BorderRadius.circular(2)),
+            ),
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+              child: Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  Expanded(child: Text('选择分P - ${item.title}', style: theme.textTheme.titleMedium?.copyWith(fontWeight: FontWeight.bold), overflow: TextOverflow.ellipsis)),
+                  Obx(() => TextButton(
+                    onPressed: controller.selectedPartIndices.isEmpty ? null : () { controller.importSelectedParts(favItem); Navigator.pop(context); },
+                    child: Text('导入(${controller.selectedPartIndices.length})'),
+                  )),
+                ],
+              ),
+            ),
+            const Divider(height: 1),
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+              child: Row(
+                children: [
+                  Obx(() => Checkbox(
+                    value: controller.selectedPartIndices.length == controller.videoParts.length,
+                    tristate: true,
+                    onChanged: (_) => controller.toggleSelectAllParts(),
+                  )),
+                  Obx(() => Text('全选 (${controller.videoParts.length}个分P)', style: theme.textTheme.bodyMedium)),
+                ],
+              ),
+            ),
+            const Divider(height: 1),
+            Expanded(
+              child: Obx(() {
+                final parts = controller.videoParts;
+                if (parts.isEmpty) return const Center(child: CircularProgressIndicator());
+                return ListView.builder(
+                  controller: scrollController,
+                  itemCount: parts.length,
+                  itemBuilder: (context, index) {
+                    final part = parts[index];
+                    final duration = Duration(seconds: part.duration ?? 0);
+                    final durationStr = '${duration.inMinutes}:${(duration.inSeconds % 60).toString().padLeft(2, '0')}';
+                    return Obx(() {
+                      final isSelected = controller.selectedPartIndices.contains(index);
+                      return CheckboxListTile(
+                        value: isSelected,
+                        onChanged: (_) => controller.togglePartSelection(index),
+                        title: Text('P${index + 1} ${part.part ?? ''}', maxLines: 1, overflow: TextOverflow.ellipsis, style: TextStyle(color: isSelected ? theme.colorScheme.primary : null)),
+                        subtitle: Text(durationStr),
+                        secondary: IconButton(
+                          icon: const Icon(Icons.play_circle_outline),
+                          tooltip: '单独添加此分P',
+                          onPressed: () { controller.importSinglePart(favItem, index, part); },
+                        ),
+                      );
+                    });
+                  },
+                );
+              }),
+            ),
+          ],
+        );
+      },
+    );
+  }
+}
