@@ -472,7 +472,7 @@ abstract final class MemberHttp {
     if (res.data['code'] == 0) {
       return Success(
         (res.data['data'] as List)
-            .map((e) => MemberTagItemModel.fromJson(e))
+            .map((e) => MemberTagItemModel.fromJson(e as Map<String, dynamic>))
             .toList(),
       );
     } else {
@@ -543,7 +543,9 @@ abstract final class MemberHttp {
         FollowData(
           list:
               (res.data['data'] as List?)
-                  ?.map<FollowItemModel>((e) => FollowItemModel.fromJson(e))
+                  ?.map<FollowItemModel>(
+                    (e) => FollowItemModel.fromJson(e as Map<String, dynamic>),
+                  )
                   .toList() ??
               <FollowItemModel>[],
         ),
@@ -623,7 +625,9 @@ abstract final class MemberHttp {
     if (res.data['code'] == 0) {
       return Success(
         (res.data['data'] as List?)
-            ?.map<MemberTagItemModel>((e) => MemberTagItemModel.fromJson(e))
+            ?.map<MemberTagItemModel>(
+              (e) => MemberTagItemModel.fromJson(e as Map<String, dynamic>),
+            )
             .toList(),
       );
     } else {

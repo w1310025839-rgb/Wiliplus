@@ -556,6 +556,9 @@ abstract final class Pref {
   static bool get horizontalScreen =>
       _setting.get(SettingBoxKey.horizontalScreen) ?? isTablet;
 
+  static bool get enableTabletLayout =>
+      _setting.get(SettingBoxKey.enableTabletLayout, defaultValue: false);
+
   static bool get isTablet {
     bool isTablet;
     if (Get.context != null) {

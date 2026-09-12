@@ -9,7 +9,9 @@ class User {
 
   factory User.fromJson(Map<String, dynamic> json) => User(
     list: (json['list'] as List<dynamic>?)
-        ?.map((e) => LiveSearchUserItemModel.fromJson(e))
+        ?.map(
+          (e) => LiveSearchUserItemModel.fromJson(e as Map<String, dynamic>),
+        )
         .toList(),
     totalUser: json['total_user'] as int?,
     totalPage: json['total_page'] as int?,

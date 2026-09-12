@@ -175,7 +175,7 @@ class VideoDetailData {
         isStoryPlay: json['is_story_play'] as int?,
         isViewSelf: json['is_view_self'] as bool?,
         staff: (json["staff"] as List?)
-            ?.map((item) => Staff.fromJson(item))
+            ?.map((e) => Staff.fromJson(e as Map<String, dynamic>))
             .toList(),
         redirectUrl: json['redirect_url'],
       );

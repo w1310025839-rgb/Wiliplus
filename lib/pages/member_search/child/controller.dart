@@ -47,6 +47,7 @@ class MemberSearchChildController extends CommonListController {
         controller.counts[searchType.index] = data.total ?? 0;
         return data.items;
     }
+    return null;
   }
 
   @override

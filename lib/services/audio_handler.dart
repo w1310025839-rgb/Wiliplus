@@ -23,6 +23,7 @@ Future<VideoPlayerServiceHandler> initAudioService() {
       rewindInterval: Duration(seconds: 10),
       androidNotificationChannelDescription: 'Media notification channel',
       androidNotificationIcon: 'drawable/ic_notification_icon',
+      androidNotificationClickStartsActivity: true,
     ),
   );
 }

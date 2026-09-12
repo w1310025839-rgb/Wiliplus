@@ -171,7 +171,7 @@ class PgcInfoModel {
         ? null
         : UserStatus.fromJson(json['user_status'] as Map<String, dynamic>),
     cooperators: (json['cooperators'] as List?)
-        ?.map((e) => Cooperator.fromJson(e))
+        ?.map((e) => Cooperator.fromJson(e as Map<String, dynamic>))
         .toList(),
     brief: json['brief'] == null
         ? null

@@ -182,6 +182,10 @@ class PlPlayerController {
   Timer? _timer;
   Timer? _timerForSeek;
   Timer? _timerForShowingVolume;
+  Timer? _videoFreezeTimer;
+  Duration _lastFreezeCheckPosition = Duration.zero;
+  int _videoFreezeTicks = 0;
+  bool _refreshingFrozenVideo = false;
 
   Box setting = GStorage.setting;
 
@@ -842,7 +846,7 @@ class PlPlayerController {
       player,
       configuration: VideoControllerConfiguration(
         enableHardwareAcceleration: enableHA,
-        androidAttachSurfaceAfterVideoParameters: false,
+        androidAttachSurfaceAfterVideoParameters: true,
         hwdec: enableHA ? hwdec : null,
       ),
     );
@@ -1015,6 +1019,7 @@ class PlPlayerController {
           disableAutoEnterPip();
           playerStatus.value = PlayerStatus.paused;
         }
+        _updateVideoFreezeWatchdog();
         videoPlayerServiceHandler?.onStatusChange(
           playerStatus.value,
           isBuffering.value,
@@ -1044,6 +1049,7 @@ class PlPlayerController {
       }),
       controllerStream.position.listen((event) {
         position.value = event;
+        _updateVideoFreezeWatchdog(event);
         updatePositionSecond();
         if (!isSliderMoving.value) {
           sliderPosition.value = event;
@@ -1065,6 +1071,7 @@ class PlPlayerController {
       }),
       controllerStream.buffering.listen((bool event) {
         isBuffering.value = event;
+        _updateVideoFreezeWatchdog();
         videoPlayerServiceHandler?.onStatusChange(
           playerStatus.value,
           event,
@@ -1157,6 +1164,75 @@ class PlPlayerController {
   }
 
   /// 移除事件监听
+  void _updateVideoFreezeWatchdog([Duration? currentPosition]) {
+    if (!Platform.isAndroid || isLive || onlyPlayAudio.value) {
+      _stopVideoFreezeWatchdog();
+      return;
+    }
+
+    if (playerStatus.value != PlayerStatus.playing || isBuffering.value) {
+      _stopVideoFreezeWatchdog();
+      return;
+    }
+
+    if (currentPosition != null &&
+        currentPosition != _lastFreezeCheckPosition) {
+      _lastFreezeCheckPosition = currentPosition;
+      _videoFreezeTicks = 0;
+      return;
+    }
+
+    _videoFreezeTimer ??= Timer.periodic(
+      const Duration(seconds: 2),
+      (_) => _checkVideoFreeze(),
+    );
+  }
+
+  Future<void> _checkVideoFreeze() async {
+    if (_refreshingFrozenVideo ||
+        _playerCount == 0 ||
+        _videoPlayerController == null ||
+        playerStatus.value != PlayerStatus.playing ||
+        isBuffering.value ||
+        isLive ||
+        onlyPlayAudio.value) {
+      return;
+    }
+
+    final currentPosition = _videoPlayerController!.state.position;
+    if (currentPosition == _lastFreezeCheckPosition) {
+      _videoFreezeTicks++;
+    } else {
+      _lastFreezeCheckPosition = currentPosition;
+      _videoFreezeTicks = 0;
+      return;
+    }
+
+    if (_videoFreezeTicks < 3) return;
+
+    _refreshingFrozenVideo = true;
+    _videoFreezeTicks = 0;
+    try {
+      if (kDebugMode) {
+        debugPrint(
+          'Video position stuck, refreshing player at $currentPosition',
+        );
+      }
+      await refreshPlayer();
+    } finally {
+      _lastFreezeCheckPosition =
+          _videoPlayerController?.state.position ?? currentPosition;
+      _refreshingFrozenVideo = false;
+    }
+  }
+
+  void _stopVideoFreezeWatchdog() {
+    _videoFreezeTimer?.cancel();
+    _videoFreezeTimer = null;
+    _videoFreezeTicks = 0;
+    _lastFreezeCheckPosition = position.value;
+  }
+
   Future<void> removeListeners() {
     return Future.wait(subscriptions.map((e) => e.cancel()));
   }
@@ -1704,6 +1780,7 @@ class PlPlayerController {
     _timer?.cancel();
     _timerForSeek?.cancel();
     _timerForShowingVolume?.cancel();
+    _stopVideoFreezeWatchdog();
     // _position.close();
     // _playerEventSubs?.cancel();
     // _sliderPosition.close();

@@ -516,7 +516,7 @@ abstract final class DynamicsHttp {
     if (res.data['code'] == 0) {
       return Success(
         (res.data['data']?['topic_items'] as List?)
-            ?.map((e) => TopicItem.fromJson(e))
+            ?.map((e) => TopicItem.fromJson(e as Map<String, dynamic>))
             .toList(),
       );
     } else {
@@ -535,7 +535,7 @@ abstract final class DynamicsHttp {
     if (res.data['code'] == 0) {
       return Success(
         (res.data['data'] as List?)
-            ?.map((e) => OpusPicModel.fromJson(e))
+            ?.map((e) => OpusPicModel.fromJson(e as Map<String, dynamic>))
             .toList(),
       );
     } else {
@@ -668,7 +668,7 @@ abstract final class DynamicsHttp {
     if (res.data['code'] == 0) {
       return Success(
         (res.data['data']?['votes'] as List?)
-            ?.map((e) => FolloweeVote.fromJson(e))
+            ?.map((e) => FolloweeVote.fromJson(e as Map<String, dynamic>))
             .toList(),
       );
     } else {

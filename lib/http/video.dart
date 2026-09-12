@@ -315,7 +315,7 @@ abstract final class VideoHttp {
     );
     if (res.data['code'] == 0) {
       final items = (res.data['data'] as List?)?.map(
-        (i) => HotVideoItemModel.fromJson(i),
+        (e) => HotVideoItemModel.fromJson(e as Map<String, dynamic>),
       );
       final list = RecommendFilter.applyFilterToRelatedVideos
           ? items?.where((i) => !RecommendFilter.filterAll(i)).toList()
@@ -873,6 +873,15 @@ abstract final class VideoHttp {
     return null;
   }
 
+  // 获取字幕原始body数据（用于歌词显示）
+  static Future<List?> getSubtitleBody(String subtitleUrl) async {
+    final res = await Request().get("https:$subtitleUrl");
+    if (res.data?['body'] case List list) {
+      return list;
+    }
+    return null;
+  }
+
   static bool _canAddRank(Map i) {
     if (!GlobalData().blackMids.contains(i['owner']['mid']) &&
         !RecommendFilter.filterTitle(i['title']) &&
@@ -937,7 +946,7 @@ abstract final class VideoHttp {
     if (res.data['code'] == 0) {
       return Success(
         (res.data['result']?['list'] as List?)
-            ?.map((e) => PgcRankItemModel.fromJson(e))
+            ?.map((e) => PgcRankItemModel.fromJson(e as Map<String, dynamic>))
             .toList(),
       );
     } else {
@@ -960,7 +969,7 @@ abstract final class VideoHttp {
     if (res.data['code'] == 0) {
       return Success(
         (res.data['data']?['list'] as List?)
-            ?.map((e) => PgcRankItemModel.fromJson(e))
+            ?.map((e) => PgcRankItemModel.fromJson(e as Map<String, dynamic>))
             .toList(),
       );
     } else {

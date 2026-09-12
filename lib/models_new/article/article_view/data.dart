@@ -151,7 +151,7 @@ class ArticleViewData {
             ? null
             : ArticleOpus.fromJson(json['opus'] as Map<String, dynamic>),
         ops: (json['ops'] as List?)
-            ?.map((e) => ArticleOps.fromJson(e))
+            ?.map((e) => ArticleOps.fromJson(e as Map<String, dynamic>))
             .toList(),
       );
 }

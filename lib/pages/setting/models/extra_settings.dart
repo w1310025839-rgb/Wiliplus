@@ -1145,6 +1145,13 @@ List<SettingsModel> get extraSettings => [
       }
     },
   ),
+  const SwitchModel(
+    title: '启用平板布局',
+    subtitle: '横屏时使用平板专属三栏布局',
+    leading: Icon(Icons.tablet_android),
+    setKey: SettingBoxKey.enableTabletLayout,
+    defaultVal: false,
+  ),
 ];
 
 Future<void> audioNormalization(

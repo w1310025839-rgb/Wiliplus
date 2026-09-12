@@ -334,7 +334,7 @@ abstract final class UserHttp {
     if (res.data['code'] == 0) {
       return Success(
         (res.data['data'] as List?)
-            ?.map((e) => VideoTagItem.fromJson(e))
+            ?.map((e) => VideoTagItem.fromJson(e as Map<String, dynamic>))
             .toList(),
       );
     } else {

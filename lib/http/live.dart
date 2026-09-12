@@ -328,7 +328,7 @@ abstract final class LiveHttp {
     if (res.data['code'] == 0) {
       return Success(
         (res.data['data']?['list'] as List?)
-            ?.map((e) => AreaList.fromJson(e))
+            ?.map((e) => AreaList.fromJson(e as Map<String, dynamic>))
             .toList(),
       );
     } else {
@@ -360,7 +360,7 @@ abstract final class LiveHttp {
     if (res.data['code'] == 0) {
       return Success(
         (res.data['data']?['tags'] as List?)
-                ?.map((e) => AreaItem.fromJson(e))
+                ?.map((e) => AreaItem.fromJson(e as Map<String, dynamic>))
                 .toList() ??
             <AreaItem>[],
       );
@@ -428,7 +428,9 @@ abstract final class LiveHttp {
     );
     if (res.data['code'] == 0) {
       return Success(
-        (res.data['data'] as List?)?.map((e) => AreaItem.fromJson(e)).toList(),
+        (res.data['data'] as List?)
+            ?.map((e) => AreaItem.fromJson(e as Map<String, dynamic>))
+            .toList(),
       );
     } else {
       return Error(res.data['message']);

@@ -126,7 +126,7 @@ abstract final class MsgHttp {
     if (res.data['code'] == 0) {
       return Success(
         (res.data['data'] as List?)
-            ?.map((e) => MsgSysItem.fromJson(e))
+            ?.map((e) => MsgSysItem.fromJson(e as Map<String, dynamic>))
             .toList(),
       );
     } else {
@@ -522,7 +522,7 @@ abstract final class MsgHttp {
     if (res.data['code'] == 0) {
       return Success(
         (res.data['data'] as List?)
-            ?.map((e) => ImUserInfosData.fromJson(e))
+            ?.map((e) => ImUserInfosData.fromJson(e as Map<String, dynamic>))
             .toList(),
       );
     } else {
@@ -569,7 +569,7 @@ abstract final class MsgHttp {
     if (res.data['code'] == 0) {
       return Success(
         (res.data['data']?['uid_settings'] as List?)
-            ?.map((e) => UidSetting.fromJson(e))
+            ?.map((e) => UidSetting.fromJson(e as Map<String, dynamic>))
             .toList(),
       );
     } else {

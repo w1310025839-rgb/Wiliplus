@@ -18,6 +18,7 @@ import 'package:PiliPlus/models_new/fav/fav_detail/data.dart';
 import 'package:PiliPlus/models_new/fav/fav_folder/data.dart';
 import 'package:PiliPlus/models_new/fav/fav_folder/list.dart';
 import 'package:PiliPlus/models_new/video/video_detail/page.dart';
+import 'package:PiliPlus/models_new/video/video_play_info/data.dart';
 import 'package:PiliPlus/plugin/pl_player/models/play_status.dart';
 import 'package:PiliPlus/services/service_locator.dart';
 import 'package:PiliPlus/utils/accounts.dart';
@@ -78,6 +79,27 @@ class MusicItem {
   );
 }
 
+// 歌词行数据模型
+class LyricLine {
+  final double startTime; // 开始时间（秒）
+  final double endTime; // 结束时间（秒）
+  final String content; // 歌词内容
+
+  LyricLine({
+    required this.startTime,
+    required this.endTime,
+    required this.content,
+  });
+
+  factory LyricLine.fromSubtitleBody(Map<String, dynamic> json) {
+    return LyricLine(
+      startTime: (json['from'] as num?)?.toDouble() ?? 0.0,
+      endTime: (json['to'] as num?)?.toDouble() ?? 0.0,
+      content: json['content'] ?? '',
+    );
+  }
+}
+
 class MusicPlayerController extends GetxController with WidgetsBindingObserver {
   final RxList<MusicItem> playlist = <MusicItem>[].obs;
   final Rx<MusicItem?> currentMusic = Rx<MusicItem?>(null);
@@ -121,10 +143,17 @@ class MusicPlayerController extends GetxController with WidgetsBindingObserver {
   final RxDouble bassBoost = 0.0.obs; // -10 到 10
   final RxDouble trebleBoost = 0.0.obs; // -10 到 10
 
+  // AI歌词相关
+  final RxBool showLyrics = false.obs; // 是否显示歌词视图
+  final RxBool isLoadingLyrics = false.obs; // 是否正在加载歌词
+  final RxList<LyricLine> lyrics = <LyricLine>[].obs; // 歌词列表
+  final RxInt currentLyricIndex = 0.obs; // 当前歌词索引
+
   // 播放列表记忆功能
-  final RxBool playlistMemoryEnabled = false.obs;
+  final RxBool playlistMemoryEnabled = true.obs;
   static const String _playlistStorageKey = 'music_player_playlist';
   static const String _playlistMemoryKey = 'music_player_memory_enabled';
+  static const String _playlistStateStorageKey = 'music_player_state';
 
   Player? _player;
   VideoController? _videoController;
@@ -133,7 +162,9 @@ class MusicPlayerController extends GetxController with WidgetsBindingObserver {
   StreamSubscription? _playingSubscription;
   StreamSubscription? _bufferingSubscription;
   StreamSubscription? _completedSubscription;
+  Timer? _memorySaveTimer;
   bool _isInBackground = false;
+  bool _restoredPendingMedia = false;
 
   Player? get player => _player;
   VideoController? get videoController => _videoController;
@@ -162,6 +193,7 @@ class MusicPlayerController extends GetxController with WidgetsBindingObserver {
     if (state == AppLifecycleState.paused) {
       _isInBackground = true;
       _updateMediaNotification();
+      _savePlaybackMemory();
     } else if (state == AppLifecycleState.resumed) {
       _isInBackground = false;
     }
@@ -182,6 +214,7 @@ class MusicPlayerController extends GetxController with WidgetsBindingObserver {
     _playingSubscription?.cancel();
     _bufferingSubscription?.cancel();
     _completedSubscription?.cancel();
+    _memorySaveTimer?.cancel();
     _player?.dispose();
     _player = null;
     _videoController = null;
@@ -241,12 +274,18 @@ class MusicPlayerController extends GetxController with WidgetsBindingObserver {
     if (_player == null) return;
     _positionSubscription = _player!.stream.position.listen((pos) {
       progress.value = pos.inMilliseconds / 1000.0;
+      _scheduleSavePlaybackMemory();
+      // 更新歌词索引
+      if (showLyrics.value && lyrics.isNotEmpty) {
+        updateCurrentLyricIndex();
+      }
       if (_isInBackground) {
         videoPlayerServiceHandler?.onPositionChange(pos);
       }
     });
     _durationSubscription = _player!.stream.duration.listen((dur) {
       duration.value = dur.inMilliseconds / 1000.0;
+      _scheduleSavePlaybackMemory();
     });
     _playingSubscription = _player!.stream.playing.listen((playing) {
       isPlaying.value = playing;
@@ -279,6 +318,7 @@ class MusicPlayerController extends GetxController with WidgetsBindingObserver {
   void addToPlaylist(MusicItem music) {
     if (!playlist.any((m) => m.musicId == music.musicId)) {
       playlist.add(music);
+      _savePlaybackMemory();
     }
   }
 
@@ -297,6 +337,7 @@ class MusicPlayerController extends GetxController with WidgetsBindingObserver {
         currentMusic.value = null;
         _player?.pause();
       }
+      _savePlaybackMemory();
     }
   }
 
@@ -306,12 +347,23 @@ class MusicPlayerController extends GetxController with WidgetsBindingObserver {
     currentIndex.value = 0;
     isPlaying.value = false;
     _player?.pause();
+    _savePlaybackMemory();
   }
 
   Future<void> playMusic(int index) async {
     if (index >= 0 && index < playlist.length) {
+      _restoredPendingMedia = false;
       currentIndex.value = index;
       currentMusic.value = playlist[index];
+      progress.value = 0;
+      duration.value = 0;
+      _savePlaybackMemory();
+      // 切换歌曲时重新加载歌词
+      lyrics.clear();
+      currentLyricIndex.value = 0;
+      if (showLyrics.value) {
+        loadLyrics();
+      }
       await _loadAndPlayVideo(playlist[index]);
     }
   }
@@ -420,7 +472,10 @@ class MusicPlayerController extends GetxController with WidgetsBindingObserver {
             }
           }
           isPlaying.value = true;
+          // 确保音频服务回调已设置
+          _setupAudioServiceCallbacks();
           _updateMediaNotification();
+          _savePlaybackMemory();
         }
       } else {
         SmartDialog.showToast(
@@ -438,10 +493,14 @@ class MusicPlayerController extends GetxController with WidgetsBindingObserver {
 
   void togglePlay() {
     if (_player == null) return;
+    // 确保音频服务回调已设置
+    _setupAudioServiceCallbacks();
     if (isPlaying.value) {
       _player!.pause();
     } else {
-      if (currentMusic.value != null) {
+      if (_restoredPendingMedia && currentMusic.value != null) {
+        unawaited(_playRestoredMusic());
+      } else if (currentMusic.value != null) {
         _player!.play();
       } else if (playlist.isNotEmpty) {
         playMusic(0);
@@ -467,10 +526,12 @@ class MusicPlayerController extends GetxController with WidgetsBindingObserver {
 
   void toggleShuffle() {
     isShuffleMode.value = !isShuffleMode.value;
+    _savePlaybackMemory();
   }
 
   void toggleRepeatMode() {
     repeatMode.value = (repeatMode.value + 1) % 3;
+    _savePlaybackMemory();
   }
 
   void toggleVideoRatio() {
@@ -491,15 +552,44 @@ class MusicPlayerController extends GetxController with WidgetsBindingObserver {
   }
 
   void seekTo(double position) {
-    _player?.seek(Duration(milliseconds: (position * 1000).toInt()));
+    final target = duration.value > 0
+        ? position.clamp(0.0, duration.value)
+        : position.clamp(0.0, double.infinity);
+    _player?.seek(Duration(milliseconds: (target * 1000).toInt()));
+    progress.value = target;
+    _savePlaybackMemory();
+  }
+
+  void seekBy(double seconds) {
+    seekTo(progress.value + seconds);
   }
 
   void pause() {
     _player?.pause();
+    _savePlaybackMemory();
   }
 
   void play() {
-    _player?.play();
+    // 确保音频服务回调已设置
+    _setupAudioServiceCallbacks();
+    if (_restoredPendingMedia && currentMusic.value != null) {
+      unawaited(_playRestoredMusic());
+    } else {
+      _player?.play();
+    }
+  }
+
+  Future<void> _playRestoredMusic() async {
+    final music = currentMusic.value;
+    if (music == null) return;
+
+    final restoredProgress = progress.value;
+    _restoredPendingMedia = false;
+    await _loadAndPlayVideo(music);
+    if (restoredProgress > 0) {
+      await Future.delayed(const Duration(milliseconds: 300));
+      seekTo(restoredProgress);
+    }
   }
 
   Future<void> loadFavFolders() async {
@@ -912,14 +1002,14 @@ class MusicPlayerController extends GetxController with WidgetsBindingObserver {
   // 播放列表记忆功能
   void _loadPlaylistMemorySetting() {
     playlistMemoryEnabled.value =
-        GStorage.setting.get(_playlistMemoryKey, defaultValue: false) ?? false;
+        GStorage.setting.get(_playlistMemoryKey, defaultValue: true) ?? true;
   }
 
   void togglePlaylistMemory() {
     playlistMemoryEnabled.value = !playlistMemoryEnabled.value;
     GStorage.setting.put(_playlistMemoryKey, playlistMemoryEnabled.value);
     if (playlistMemoryEnabled.value) {
-      _savePlaylist();
+      _savePlaybackMemory();
       SmartDialog.showToast('已开启播放列表记忆');
     } else {
       _clearSavedPlaylist();
@@ -930,17 +1020,20 @@ class MusicPlayerController extends GetxController with WidgetsBindingObserver {
   void _loadSavedPlaylist() {
     if (!playlistMemoryEnabled.value) return;
     try {
-      final savedData = GStorage.setting.get(_playlistStorageKey);
-      if (savedData != null && savedData is String && savedData.isNotEmpty) {
-        final List<dynamic> jsonList = jsonDecode(savedData);
-        final items = jsonList
-            .map((e) => MusicItem.fromJson(e as Map<String, dynamic>))
-            .toList();
-        if (items.isNotEmpty) {
-          playlist.value = items;
-          if (kDebugMode) {
-            debugPrint('Loaded ${items.length} items from saved playlist');
-          }
+      final savedState = GStorage.setting.get(_playlistStateStorageKey);
+      if (savedState is String && savedState.isNotEmpty) {
+        final decoded = jsonDecode(savedState);
+        if (decoded is Map) {
+          _restorePlaybackState(Map<String, dynamic>.from(decoded));
+          return;
+        }
+      }
+
+      final savedPlaylist = GStorage.setting.get(_playlistStorageKey);
+      if (savedPlaylist is String && savedPlaylist.isNotEmpty) {
+        final decoded = jsonDecode(savedPlaylist);
+        if (decoded is List) {
+          _restorePlaylist(decoded);
         }
       }
     } catch (e) {
@@ -950,15 +1043,40 @@ class MusicPlayerController extends GetxController with WidgetsBindingObserver {
 
   void _savePlaylistIfEnabled() {
     if (playlistMemoryEnabled.value) {
-      _savePlaylist();
+      _savePlaybackMemory();
     }
   }
 
-  void _savePlaylist() {
+  void _scheduleSavePlaybackMemory() {
+    if (!playlistMemoryEnabled.value || playlist.isEmpty) return;
+    _memorySaveTimer?.cancel();
+    _memorySaveTimer = Timer(
+      const Duration(seconds: 2),
+      _savePlaybackMemory,
+    );
+  }
+
+  void _savePlaybackMemory() {
+    if (!playlistMemoryEnabled.value) return;
     try {
       final jsonList = playlist.map((e) => e.toJson()).toList();
-      final jsonStr = jsonEncode(jsonList);
-      GStorage.setting.put(_playlistStorageKey, jsonStr);
+      if (jsonList.isEmpty) {
+        _clearSavedPlaylist();
+        return;
+      }
+      GStorage.setting.put(_playlistStorageKey, jsonEncode(jsonList));
+      GStorage.setting.put(
+        _playlistStateStorageKey,
+        jsonEncode({
+          'playlist': jsonList,
+          'currentIndex': currentIndex.value,
+          'progress': progress.value,
+          'duration': duration.value,
+          'isShuffleMode': isShuffleMode.value,
+          'repeatMode': repeatMode.value,
+          'showMV': showMV.value,
+        }),
+      );
       if (kDebugMode) {
         debugPrint('Saved ${playlist.length} items to playlist');
       }
@@ -967,7 +1085,154 @@ class MusicPlayerController extends GetxController with WidgetsBindingObserver {
     }
   }
 
+  void _restorePlaybackState(Map<String, dynamic> state) {
+    _restorePlaylist(state['playlist'] as List<dynamic>?);
+    if (playlist.isEmpty) return;
+
+    currentIndex.value = (state['currentIndex'] as num? ?? 0)
+        .toInt()
+        .clamp(0, playlist.length - 1)
+        .toInt();
+    currentMusic.value = playlist[currentIndex.value];
+    progress.value = (state['progress'] as num? ?? 0).toDouble();
+    duration.value = (state['duration'] as num? ?? 0).toDouble();
+    isShuffleMode.value = state['isShuffleMode'] == true;
+    repeatMode.value = (state['repeatMode'] as num? ?? 0)
+        .toInt()
+        .clamp(0, 2)
+        .toInt();
+    showMV.value = state['showMV'] == true;
+    _restoredPendingMedia = true;
+    _updateMediaNotification();
+  }
+
+  void _restorePlaylist(List<dynamic>? jsonList) {
+    if (jsonList == null) return;
+    final items = jsonList
+        .whereType<Map>()
+        .map((e) => MusicItem.fromJson(Map<String, dynamic>.from(e)))
+        .where((e) => e.musicId.isNotEmpty)
+        .toList();
+    if (items.isEmpty) return;
+
+    playlist.value = items;
+    if (kDebugMode) {
+      debugPrint('Loaded ${items.length} items from saved playlist');
+    }
+  }
+
   void _clearSavedPlaylist() {
     GStorage.setting.delete(_playlistStorageKey);
+    GStorage.setting.delete(_playlistStateStorageKey);
+  }
+
+  // AI歌词功能
+  void toggleLyricsView() {
+    showLyrics.value = !showLyrics.value;
+    if (showLyrics.value && lyrics.isEmpty) {
+      loadLyrics();
+    }
+  }
+
+  Future<void> loadLyrics() async {
+    final music = currentMusic.value;
+    if (music == null || music.mvBvid == null) {
+      lyrics.clear();
+      return;
+    }
+
+    isLoadingLyrics.value = true;
+    lyrics.clear();
+    currentLyricIndex.value = 0;
+
+    try {
+      // 获取视频播放信息以获取字幕（使用playInfo API）
+      final cid = music.mvCid;
+      if (cid == null) {
+        isLoadingLyrics.value = false;
+        return;
+      }
+
+      final result = await VideoHttp.playInfo(
+        bvid: music.mvBvid,
+        cid: cid,
+      );
+
+      if (result is Success<PlayInfoData>) {
+        final data = result.response;
+        final subtitleInfo = data.subtitle;
+        if (subtitleInfo?.subtitles?.isNotEmpty == true) {
+          // 优先选择AI字幕或中文字幕
+          final subtitles = subtitleInfo!.subtitles!;
+          var selectedSubtitle = subtitles.firstWhereOrNull(
+            (s) => s.lan.startsWith('ai-zh'),
+          );
+          selectedSubtitle ??= subtitles.firstWhereOrNull(
+            (s) => s.lan.contains('zh'),
+          );
+          selectedSubtitle ??= subtitles.first;
+
+          if (selectedSubtitle.subtitleUrl != null) {
+            await _fetchSubtitleContent(selectedSubtitle.subtitleUrl!);
+          }
+        }
+      }
+    } catch (e) {
+      if (kDebugMode) debugPrint('Load lyrics error: $e');
+    } finally {
+      isLoadingLyrics.value = false;
+    }
+  }
+
+  Future<void> _fetchSubtitleContent(String subtitleUrl) async {
+    try {
+      final result = await VideoHttp.getSubtitleBody(subtitleUrl);
+      if (result != null) {
+        lyrics.value = result
+            .map(
+              (item) =>
+                  LyricLine.fromSubtitleBody(item as Map<String, dynamic>),
+            )
+            .toList();
+        if (kDebugMode) {
+          debugPrint('Loaded ${lyrics.length} lyric lines');
+        }
+      }
+    } catch (e) {
+      if (kDebugMode) debugPrint('Fetch subtitle content error: $e');
+    }
+  }
+
+  void updateCurrentLyricIndex() {
+    if (lyrics.isEmpty) return;
+    final currentTime = progress.value;
+
+    // 找到当前时间对应的歌词
+    for (int i = 0; i < lyrics.length; i++) {
+      final lyric = lyrics[i];
+      if (currentTime >= lyric.startTime && currentTime < lyric.endTime) {
+        if (currentLyricIndex.value != i) {
+          currentLyricIndex.value = i;
+        }
+        return;
+      }
+    }
+
+    // 如果没找到精确匹配，找最近的
+    for (int i = lyrics.length - 1; i >= 0; i--) {
+      if (currentTime >= lyrics[i].startTime) {
+        if (currentLyricIndex.value != i) {
+          currentLyricIndex.value = i;
+        }
+        return;
+      }
+    }
+  }
+
+  // 点击歌词跳转到对应时间
+  void seekToLyric(int index) {
+    if (index >= 0 && index < lyrics.length) {
+      seekTo(lyrics[index].startTime);
+    }
   }
 }

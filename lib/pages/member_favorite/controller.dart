@@ -95,7 +95,9 @@ class MemberFavoriteCtr
         if (data != null) {
           favEnd.value = data['has_more'] == false;
           final list = (data['list'] as List<dynamic>?)
-              ?.map((item) => SpaceFavItemModel.fromJson(item))
+              ?.map(
+                (e) => SpaceFavItemModel.fromJson(e as Map<String, dynamic>),
+              )
               .toList();
           if (list != null && list.isNotEmpty) {
             favState
@@ -132,7 +134,9 @@ class MemberFavoriteCtr
         if (data != null) {
           subEnd.value = data['has_more'] == false;
           final list = (data['list'] as List<dynamic>?)
-              ?.map((item) => SpaceFavItemModel.fromJson(item))
+              ?.map(
+                (e) => SpaceFavItemModel.fromJson(e as Map<String, dynamic>),
+              )
               .toList();
           if (list != null && list.isNotEmpty) {
             subState

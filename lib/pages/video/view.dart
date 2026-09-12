@@ -896,6 +896,444 @@ class _VideoDetailPageVState extends State<VideoDetailPageV>
     },
   );
 
+  /// 平板横屏视频布局：左侧（视频+弹幕+评论）| 右侧（相关视频）
+  Widget get childWhenTabletLandscape => Obx(
+    () {
+      final isFullScreen = this.isFullScreen;
+      return Scaffold(
+        resizeToAvoidBottomInset: false,
+        appBar: AppBar(backgroundColor: Colors.black, toolbarHeight: 0),
+        body: Padding(
+          padding: !isFullScreen
+              ? padding.copyWith(top: 0, bottom: 0)
+              : EdgeInsets.zero,
+          child: childWhenTabletLandscapeInner(isFullScreen, padding),
+        ),
+      );
+    },
+  );
+
+  /// 平板竖屏视频布局：左侧（相关视频）| 中间（竖屏播放器）| 右侧（评论区）
+  Widget get childWhenTabletVerticalVideo => Obx(
+    () {
+      final isFullScreen = this.isFullScreen;
+      return Scaffold(
+        resizeToAvoidBottomInset: false,
+        appBar: AppBar(backgroundColor: Colors.black, toolbarHeight: 0),
+        body: Padding(
+          padding: !isFullScreen
+              ? padding.copyWith(top: 0, bottom: 0)
+              : EdgeInsets.zero,
+          child: childWhenTabletVerticalVideoInner(isFullScreen, padding),
+        ),
+      );
+    },
+  );
+
+  /// 平板横屏视频布局内部实现
+  Widget childWhenTabletLandscapeInner(
+    bool isFullScreen,
+    EdgeInsets padding,
+  ) {
+    // 计算各区域宽度
+    final availableWidth = maxWidth - padding.horizontal;
+    final leftWidth = availableWidth * 0.7; // 左侧占70%
+    final rightWidth = availableWidth * 0.3; // 右侧占30%
+    final videoHeight = leftWidth * 9 / 16; // 16:9 视频高度
+    final contentHeight = maxHeight - padding.top;
+    const danmakuBarHeight = 50.0; // 弹幕发送栏高度
+
+    if (isFullScreen) {
+      // 全屏时只显示播放器
+      return SizedBox(
+        width: maxWidth,
+        height: maxHeight - padding.top,
+        child: videoPlayer(
+          width: maxWidth,
+          height: maxHeight - padding.top,
+        ),
+      );
+    }
+
+    return Row(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        // 左侧：视频 + 弹幕发送栏 + 评论
+        SizedBox(
+          width: leftWidth,
+          height: contentHeight,
+          child: Column(
+            children: [
+              // 播放器
+              SizedBox(
+                width: leftWidth,
+                height: videoHeight,
+                child: videoPlayer(
+                  width: leftWidth,
+                  height: videoHeight,
+                ),
+              ),
+              // 弹幕发送栏
+              Container(
+                width: leftWidth,
+                height: danmakuBarHeight,
+                decoration: BoxDecoration(
+                  color: themeData.colorScheme.surface,
+                  border: Border(
+                    top: BorderSide(
+                      color: themeData.dividerColor.withValues(alpha: 0.1),
+                    ),
+                  ),
+                ),
+                child: _buildTabletDanmakuBar(),
+              ),
+              // 评论区
+              Expanded(
+                child: _buildTabletCommentPanel(leftWidth),
+              ),
+            ],
+          ),
+        ),
+        // 右侧：相关视频
+        SizedBox(
+          width: rightWidth,
+          height: contentHeight,
+          child: Scaffold(
+            key: videoDetailController.childKey,
+            resizeToAvoidBottomInset: false,
+            backgroundColor: Colors.transparent,
+            body: _buildTabletRelatedPanel(rightWidth, contentHeight),
+          ),
+        ),
+      ],
+    );
+  }
+
+  /// 平板竖屏视频布局内部实现（三栏：相关视频 | 播放器 | 评论）
+  Widget childWhenTabletVerticalVideoInner(
+    bool isFullScreen,
+    EdgeInsets padding,
+  ) {
+    // 计算各区域宽度
+    final availableWidth = maxWidth - padding.horizontal;
+    final contentHeight = maxHeight - padding.top;
+    
+    // 竖屏视频：播放器高度尽量填满，宽度按9:16计算
+    final videoHeight = contentHeight;
+    final videoWidth = videoHeight * 9 / 16;
+    
+    // 两侧面板宽度
+    final sideWidth = (availableWidth - videoWidth) / 2;
+    
+    // 确保侧边栏有最小宽度
+    const minSideWidth = 200.0;
+    final actualSideWidth = sideWidth < minSideWidth ? minSideWidth : sideWidth;
+    final actualVideoWidth = availableWidth - actualSideWidth * 2;
+    final actualVideoHeight = actualVideoWidth * 16 / 9;
+    
+    // 如果计算出的视频高度超过屏幕高度，重新调整
+    final finalVideoHeight = actualVideoHeight > contentHeight ? contentHeight : actualVideoHeight;
+    final finalVideoWidth = finalVideoHeight * 9 / 16;
+    final finalSideWidth = (availableWidth - finalVideoWidth) / 2;
+
+    // 竖屏视频全屏时保留两侧面板
+    return Row(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        // 左侧：相关视频
+        if (!isFullScreen || videoDetailController.isVertical.value)
+          SizedBox(
+            width: isFullScreen ? finalSideWidth * 0.8 : finalSideWidth,
+            height: contentHeight,
+            child: _buildTabletRelatedPanel(
+              isFullScreen ? finalSideWidth * 0.8 : finalSideWidth,
+              contentHeight,
+            ),
+          ),
+        // 中间：竖屏播放器
+        Expanded(
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              SizedBox(
+                width: isFullScreen ? (maxWidth - finalSideWidth * 1.6) : finalVideoWidth,
+                height: isFullScreen ? contentHeight : finalVideoHeight,
+                child: videoPlayer(
+                  width: isFullScreen ? (maxWidth - finalSideWidth * 1.6) : finalVideoWidth,
+                  height: isFullScreen ? contentHeight : finalVideoHeight,
+                ),
+              ),
+              // 非全屏时显示弹幕发送栏
+              if (!isFullScreen && contentHeight > finalVideoHeight + 60)
+                Container(
+                  height: 50,
+                  decoration: BoxDecoration(
+                    color: themeData.colorScheme.surface,
+                    border: Border(
+                      top: BorderSide(
+                        color: themeData.dividerColor.withValues(alpha: 0.1),
+                      ),
+                    ),
+                  ),
+                  child: _buildTabletDanmakuBar(),
+                ),
+            ],
+          ),
+        ),
+        // 右侧：评论区
+        if (!isFullScreen || videoDetailController.isVertical.value)
+          SizedBox(
+            width: isFullScreen ? finalSideWidth * 0.8 : finalSideWidth,
+            height: contentHeight,
+            child: Scaffold(
+              key: isFullScreen ? null : videoDetailController.childKey,
+              resizeToAvoidBottomInset: false,
+              backgroundColor: Colors.transparent,
+              body: _buildTabletCommentPanelVertical(
+                isFullScreen ? finalSideWidth * 0.8 : finalSideWidth,
+                contentHeight,
+              ),
+            ),
+          ),
+      ],
+    );
+  }
+
+  /// 平板相关视频面板
+  Widget _buildTabletRelatedPanel(double width, double height) {
+    final showRelated = videoDetailController.isUgc && 
+        videoDetailController.showRelatedVideo && 
+        !videoDetailController.isFileSource;
+    
+    return DecoratedBox(
+      decoration: BoxDecoration(
+        border: Border(
+          left: BorderSide(
+            color: themeData.dividerColor.withValues(alpha: 0.1),
+          ),
+        ),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          // 标题栏
+          Container(
+            height: 45,
+            padding: const EdgeInsets.symmetric(horizontal: 12),
+            decoration: BoxDecoration(
+              border: Border(
+                bottom: BorderSide(
+                  color: themeData.dividerColor.withValues(alpha: 0.1),
+                ),
+              ),
+            ),
+            alignment: Alignment.centerLeft,
+            child: Text(
+              '相关视频',
+              style: TextStyle(
+                fontSize: 14,
+                fontWeight: FontWeight.w500,
+                color: themeData.colorScheme.onSurface,
+              ),
+            ),
+          ),
+          // 相关视频列表
+          Expanded(
+            child: showRelated
+                ? KeepAliveWrapper(
+                    builder: (context) => CustomScrollView(
+                      key: const PageStorageKey('tablet_related'),
+                      slivers: [
+                        RelatedVideoPanel(
+                          key: videoRelatedKey,
+                          heroTag: heroTag,
+                        ),
+                      ],
+                    ),
+                  )
+                : Center(
+                    child: Text(
+                      '暂无相关视频',
+                      style: TextStyle(
+                        color: themeData.colorScheme.outline,
+                      ),
+                    ),
+                  ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  /// 平板弹幕发送栏
+  Widget _buildTabletDanmakuBar() {
+    return Row(
+      children: [
+        const SizedBox(width: 12),
+        Expanded(
+          child: GestureDetector(
+            onTap: videoDetailController.showShootDanmakuSheet,
+            child: Container(
+              height: 36,
+              padding: const EdgeInsets.symmetric(horizontal: 12),
+              decoration: BoxDecoration(
+                color: themeData.colorScheme.surfaceContainerHighest,
+                borderRadius: BorderRadius.circular(18),
+              ),
+              alignment: Alignment.centerLeft,
+              child: Row(
+                children: [
+                  Icon(
+                    Icons.edit_outlined,
+                    size: 18,
+                    color: themeData.colorScheme.outline,
+                  ),
+                  const SizedBox(width: 8),
+                  Text(
+                    '发送弹幕...',
+                    style: TextStyle(
+                      fontSize: 14,
+                      color: themeData.colorScheme.outline,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ),
+        ),
+        const SizedBox(width: 8),
+        // 弹幕开关
+        Obx(
+          () {
+            final ctr = videoDetailController.plPlayerController;
+            final enableShowDanmaku = ctr.enableShowDanmaku.value;
+            return IconButton(
+              onPressed: () {
+                final newVal = !enableShowDanmaku;
+                ctr.enableShowDanmaku.value = newVal;
+                if (!ctr.tempPlayerConf) {
+                  GStorage.setting.put(
+                    SettingBoxKey.enableShowDanmaku,
+                    newVal,
+                  );
+                }
+              },
+              icon: Icon(
+                size: 22,
+                enableShowDanmaku ? CustomIcons.dm_on : CustomIcons.dm_off,
+                color: enableShowDanmaku
+                    ? themeData.colorScheme.secondary
+                    : themeData.colorScheme.outline,
+              ),
+            );
+          },
+        ),
+        const SizedBox(width: 8),
+      ],
+    );
+  }
+
+  /// 平板评论面板（横屏视频用，在左侧下方）
+  Widget _buildTabletCommentPanel(double width) {
+    if (!videoDetailController.showReply) {
+      return const SizedBox.shrink();
+    }
+    return DecoratedBox(
+      decoration: BoxDecoration(
+        border: Border(
+          top: BorderSide(
+            color: themeData.dividerColor.withValues(alpha: 0.1),
+          ),
+        ),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          // 评论标题
+          Container(
+            height: 40,
+            padding: const EdgeInsets.symmetric(horizontal: 12),
+            alignment: Alignment.centerLeft,
+            child: Obx(() {
+              final count = _videoReplyController.count.value;
+              return Text(
+                '评论${count == -1 ? '' : ' ${NumUtils.numFormat(count)}'}',
+                style: TextStyle(
+                  fontSize: 14,
+                  fontWeight: FontWeight.w500,
+                  color: themeData.colorScheme.onSurface,
+                ),
+              );
+            }),
+          ),
+          Expanded(child: videoReplyPanel()),
+        ],
+      ),
+    );
+  }
+
+  /// 平板评论面板（竖屏视频用，在右侧独立区域）
+  Widget _buildTabletCommentPanelVertical(double width, double height) {
+    return DecoratedBox(
+      decoration: BoxDecoration(
+        border: Border(
+          left: BorderSide(
+            color: themeData.dividerColor.withValues(alpha: 0.1),
+          ),
+        ),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          // 标题栏
+          Container(
+            height: 45,
+            padding: const EdgeInsets.symmetric(horizontal: 12),
+            decoration: BoxDecoration(
+              border: Border(
+                bottom: BorderSide(
+                  color: themeData.dividerColor.withValues(alpha: 0.1),
+                ),
+              ),
+            ),
+            alignment: Alignment.centerLeft,
+            child: videoDetailController.showReply
+                ? Obx(() {
+                    final count = _videoReplyController.count.value;
+                    return Text(
+                      '评论${count == -1 ? '' : ' ${NumUtils.numFormat(count)}'}',
+                      style: TextStyle(
+                        fontSize: 14,
+                        fontWeight: FontWeight.w500,
+                        color: themeData.colorScheme.onSurface,
+                      ),
+                    );
+                  })
+                : Text(
+                    '简介',
+                    style: TextStyle(
+                      fontSize: 14,
+                      fontWeight: FontWeight.w500,
+                      color: themeData.colorScheme.onSurface,
+                    ),
+                  ),
+          ),
+          // 内容区域
+          Expanded(
+            child: videoDetailController.showReply
+                ? videoReplyPanel()
+                : videoIntro(
+                    width: width,
+                    height: height - 45,
+                    needRelated: false,
+                    needCtr: true,
+                  ),
+          ),
+        ],
+      ),
+    );
+  }
+
   Widget childSplit(double ratio) {
     final double videoHeight = maxHeight - padding.vertical;
     final double width = videoHeight * ratio;
@@ -1477,8 +1915,26 @@ class _VideoDetailPageVState extends State<VideoDetailPageV>
   @override
   Widget build(BuildContext context) {
     Widget child;
+    // 检测是否启用平板布局（通过设置手动开启）
+    final enableTabletLayout = GStorage.setting.get(
+      SettingBoxKey.enableTabletLayout,
+      defaultValue: false,
+    );
+    final aspectRatio = maxWidth / maxHeight;
+    // 16:9 比例约为 1.78，允许一定误差范围
+    final is16by9 = aspectRatio >= 1.6 && aspectRatio <= 1.9;
+    
     if (videoDetailController.plPlayerController.isPipMode) {
       child = plPlayer(width: maxWidth, height: maxHeight, isPipMode: true);
+    } else if (enableTabletLayout && is16by9 && !isPortrait) {
+      // 平板布局模式：独立于横屏适配设置，只要开启平板布局且屏幕是16:9横屏就生效
+      if (videoDetailController.isVertical.value) {
+        // 竖屏视频：三栏布局（相关视频 | 播放器 | 评论）
+        child = childWhenTabletVerticalVideo;
+      } else {
+        // 横屏视频：两栏布局（视频+弹幕+评论 | 相关视频）
+        child = childWhenTabletLandscape;
+      }
     } else if (!videoDetailController.horizontalScreen) {
       child = childWhenDisabled;
     } else if (maxWidth / maxHeight >= kScreenRatio) {

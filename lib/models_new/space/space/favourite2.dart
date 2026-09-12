@@ -9,7 +9,7 @@ class Favourite2 {
   factory Favourite2.fromJson(Map<String, dynamic> json) => Favourite2(
     count: json['count'] as int?,
     item: (json['item'] as List<dynamic>?)
-        ?.map((e) => SpaceFavItemModel.fromJson(e))
+        ?.map((e) => SpaceFavItemModel.fromJson(e as Map<String, dynamic>))
         .toList(),
   );
 }

@@ -55,7 +55,7 @@ abstract final class MusicHttp {
     if (res.data['code'] == 0) {
       return Success(
         (res.data['data']?['list'] as List?)
-            ?.map((i) => BgmRecommend.fromJson(i))
+            ?.map((e) => BgmRecommend.fromJson(e as Map<String, dynamic>))
             .toList(),
       );
     } else {

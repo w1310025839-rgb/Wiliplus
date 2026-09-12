@@ -31,6 +31,7 @@ class _FriendsPageState extends State<FriendsPage> {
         primary: false,
         toolbarHeight: 50,
         backgroundColor: Colors.transparent,
+        automaticallyImplyLeading: false, // 移除默认的drawer按钮
         title: SizedBox(
           height: 50,
           child: TabBar(
@@ -52,56 +53,64 @@ class _FriendsPageState extends State<FriendsPage> {
           ),
         ),
       ),
-      drawer: _buildFriendsDrawer(theme),
-      drawerEnableOpenDragGesture: true,
-      body: tabBarView(
-        controller: _controller.tabController,
-        children: const [
-          FriendDynamicsTab(),
-          FriendWhisperTab(),
+      // 使用Row布局，左侧常驻好友列表，右侧是内容区
+      body: Row(
+        children: [
+          // 常驻好友侧栏
+          _buildFriendsSidebar(theme),
+          // 垂直分割线
+          VerticalDivider(width: 1, thickness: 1, color: theme.dividerColor),
+          // 主内容区
+          Expanded(
+            child: tabBarView(
+              controller: _controller.tabController,
+              children: const [
+                FriendDynamicsTab(),
+                FriendWhisperTab(),
+              ],
+            ),
+          ),
         ],
       ),
     );
   }
 
-  Widget _buildFriendsDrawer(ThemeData theme) {
-    return Material(
-      color: theme.colorScheme.surface,
-      child: SizedBox(
-        width: 100,
-        child: Column(
-          children: [
-            SizedBox(height: MediaQuery.paddingOf(context).top + 16),
-            Text(
-              '好友',
-              style: theme.textTheme.titleSmall?.copyWith(
-                fontWeight: FontWeight.bold,
+  // 常驻好友侧栏
+  Widget _buildFriendsSidebar(ThemeData theme) {
+    return SizedBox(
+      width: 80,
+      child: Column(
+        children: [
+          const SizedBox(height: 8),
+          Text(
+            '好友',
+            style: theme.textTheme.titleSmall?.copyWith(
+              fontWeight: FontWeight.bold,
+            ),
+          ),
+          const SizedBox(height: 8),
+          // 筛选按钮
+          Obx(
+            () => _buildFilterChips(theme),
+          ),
+          const SizedBox(height: 8),
+          const Divider(height: 1),
+          Expanded(
+            child: Obx(
+              () => _buildFriendsList(
+                _controller.friendsState.value,
+                theme,
               ),
             ),
-            const SizedBox(height: 8),
-            // 筛选按钮
-            Obx(
-              () => _buildFilterChips(theme),
-            ),
-            const SizedBox(height: 8),
-            const Divider(height: 1),
-            Expanded(
-              child: Obx(
-                () => _buildFriendsList(
-                  _controller.friendsState.value,
-                  theme,
-                ),
-              ),
-            ),
-          ],
-        ),
+          ),
+        ],
       ),
     );
   }
 
   Widget _buildFilterChips(ThemeData theme) {
     return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 8),
+      padding: const EdgeInsets.symmetric(horizontal: 4),
       child: Column(
         children: FriendFilterType.values.map((type) {
           final isSelected = _controller.filterType.value == type;
@@ -109,15 +118,15 @@ class _FriendsPageState extends State<FriendsPage> {
             padding: const EdgeInsets.only(bottom: 4),
             child: InkWell(
               onTap: () => _controller.setFilterType(type),
-              borderRadius: BorderRadius.circular(16),
+              borderRadius: BorderRadius.circular(12),
               child: Container(
                 width: double.infinity,
-                padding: const EdgeInsets.symmetric(vertical: 6, horizontal: 8),
+                padding: const EdgeInsets.symmetric(vertical: 4, horizontal: 6),
                 decoration: BoxDecoration(
                   color: isSelected
                       ? theme.colorScheme.primaryContainer
                       : Colors.transparent,
-                  borderRadius: BorderRadius.circular(16),
+                  borderRadius: BorderRadius.circular(12),
                   border: Border.all(
                     color: isSelected
                         ? theme.colorScheme.primary
@@ -128,7 +137,7 @@ class _FriendsPageState extends State<FriendsPage> {
                   _controller.getFilterTypeName(type),
                   textAlign: TextAlign.center,
                   style: TextStyle(
-                    fontSize: 11,
+                    fontSize: 10,
                     color: isSelected
                         ? theme.colorScheme.onPrimaryContainer
                         : theme.colorScheme.onSurface,
@@ -203,24 +212,31 @@ class _FriendsPageState extends State<FriendsPage> {
         },
       ),
       child: Padding(
-        padding: const EdgeInsets.symmetric(vertical: 8, horizontal: 12),
+        padding: const EdgeInsets.symmetric(vertical: 6, horizontal: 8),
         child: Column(
           children: [
             Stack(
               children: [
-                NetworkImgLayer(
-                  width: 44,
-                  height: 44,
-                  src: item.face,
-                  type: ImageType.avatar,
+                // 点击头像跳转到用户动态页面
+                GestureDetector(
+                  onTap: () => Get.toNamed(
+                    '/memberDynamics',
+                    parameters: {'mid': item.uid.toString()},
+                  ),
+                  child: NetworkImgLayer(
+                    width: 40,
+                    height: 40,
+                    src: item.face,
+                    type: ImageType.avatar,
+                  ),
                 ),
                 if (item.isLive)
                   Positioned(
                     right: 0,
                     bottom: 0,
                     child: Container(
-                      width: 12,
-                      height: 12,
+                      width: 10,
+                      height: 10,
                       decoration: BoxDecoration(
                         color: Colors.red,
                         shape: BoxShape.circle,
@@ -233,12 +249,12 @@ class _FriendsPageState extends State<FriendsPage> {
                   ),
               ],
             ),
-            const SizedBox(height: 4),
+            const SizedBox(height: 2),
             Text(
               item.name,
               maxLines: 1,
               overflow: TextOverflow.ellipsis,
-              style: const TextStyle(fontSize: 10),
+              style: const TextStyle(fontSize: 9),
               textAlign: TextAlign.center,
             ),
           ],

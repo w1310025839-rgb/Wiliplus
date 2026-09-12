@@ -39,6 +39,7 @@ class LiveSearchChildController
         controller.counts[searchType.index] = response.user?.totalUser ?? 0;
         return response.user?.list;
     }
+    return null;
   }
 
   @override

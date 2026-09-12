@@ -154,7 +154,8 @@ abstract final class SettingBoxKey {
       showTrayIcon = 'showTrayIcon',
       appIconIndex = 'appIconIndex',
       enableTapSeek = 'enableTapSeek',
-      enableLongPressFullscreen = 'enableLongPressFullscreen';
+      enableLongPressFullscreen = 'enableLongPressFullscreen',
+      enableTabletLayout = 'enableTabletLayout';
 
   static const String subtitlePreferenceV2 = 'subtitlePreferenceV2',
       enableDragSubtitle = 'enableDragSubtitle',

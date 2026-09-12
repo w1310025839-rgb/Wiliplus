@@ -15,7 +15,7 @@ class SpaceSsModel {
 
   factory SpaceSsModel.fromJson(Map<String, dynamic> json) => SpaceSsModel(
     archives: (json["archives"] as List?)
-        ?.map((e) => SpaceSsArchive.fromJson(e))
+        ?.map((e) => SpaceSsArchive.fromJson(e as Map<String, dynamic>))
         .toList(),
     meta: json["meta"] == null ? null : SpaceSsMeta.fromJson(json["meta"]),
     recentAids: (json["recent_aids"] as List?)?.fromCast(),

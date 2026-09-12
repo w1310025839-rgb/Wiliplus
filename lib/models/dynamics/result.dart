@@ -215,7 +215,9 @@ class ItemModulesModel {
           break;
         case 'MODULE_TYPE_CONTENT':
           moduleContent = (i['module_content']?['paragraphs'] as List?)
-              ?.map((i) => ArticleContentModel.fromJson(i))
+              ?.map(
+                (e) => ArticleContentModel.fromJson(e as Map<String, dynamic>),
+              )
               .toList();
           break;
         case 'MODULE_TYPE_BLOCKED':
@@ -268,7 +270,9 @@ class ModuleFold {
   ModuleFold.fromJson(Map<String, dynamic> json) {
     ids = (json['ids'] as List?)?.fromCast();
     statement = json['statement'];
-    users = (json['users'] as List?)?.map((e) => Owner.fromJson(e)).toList();
+    users = (json['users'] as List?)
+        ?.map((e) => Owner.fromJson(e as Map<String, dynamic>))
+        .toList();
   }
 }
 
@@ -310,7 +314,9 @@ class ModuleTopAlbum {
   List<Pic>? pics;
 
   ModuleTopAlbum.fromJson(Map<String, dynamic> json) {
-    pics = (json['pics'] as List?)?.map((e) => Pic.fromJson(e)).toList();
+    pics = (json['pics'] as List?)
+        ?.map((e) => Pic.fromJson(e as Map<String, dynamic>))
+        .toList();
   }
 }
 

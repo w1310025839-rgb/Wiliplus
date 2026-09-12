@@ -322,7 +322,7 @@ abstract final class FavHttp {
     );
     if (res.data['code'] == 0) {
       List<FavNoteItemModel>? list = (res.data['data']?['list'] as List?)
-          ?.map((e) => FavNoteItemModel.fromJson(e))
+          ?.map((e) => FavNoteItemModel.fromJson(e as Map<String, dynamic>))
           .toList();
       return Success(list);
     } else {
@@ -343,7 +343,7 @@ abstract final class FavHttp {
     );
     if (res.data['code'] == 0) {
       List<FavNoteItemModel>? list = (res.data['data']?['list'] as List?)
-          ?.map((e) => FavNoteItemModel.fromJson(e))
+          ?.map((e) => FavNoteItemModel.fromJson(e as Map<String, dynamic>))
           .toList();
       return Success(list);
     } else {
@@ -597,7 +597,7 @@ abstract final class FavHttp {
     if (res.data['code'] == 0) {
       return Success(
         (res.data['data'] as List?)
-            ?.map((e) => SpaceFavData.fromJson(e))
+            ?.map((e) => SpaceFavData.fromJson(e as Map<String, dynamic>))
             .toList(),
       );
     } else {

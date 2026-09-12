@@ -9,7 +9,7 @@ class LikeArchive {
   factory LikeArchive.fromJson(Map<String, dynamic> json) => LikeArchive(
     count: json['count'] as int?,
     item: (json['item'] as List<dynamic>?)
-        ?.map((e) => SpaceArchiveItem.fromJson(e))
+        ?.map((e) => SpaceArchiveItem.fromJson(e as Map<String, dynamic>))
         .toList(),
   );
 }
