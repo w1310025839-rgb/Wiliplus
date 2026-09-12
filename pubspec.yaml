@@ -43,8 +43,8 @@ dependencies:
   # get: ^4.7.2
   get:
     git:
-      url: https://github.com/bggRGjQaUbCoE/getx.git
-      ref: version_4.7.2
+      url: https://github.com/w1310025839-rgb/getx.git
+      ref: main
 
   # 网络
   dio: ^5.7.0
@@ -81,11 +81,10 @@ dependencies:
   # webview_flutter: ^4.10.0
   flutter_inappwebview: ^6.1.5
   # 解决sliver滑动不同步
-  # extended_nested_scroll_view: ^6.2.1
   extended_nested_scroll_view:
     git:
-      url: https://github.com/bggRGjQaUbCoE/extended_nested_scroll_view.git
-      ref: mod
+      url: https://github.com/w1310025839-rgb/extended_nested_scroll_view.git
+      ref: main
   # 上拉加载
   # loading_more_list: ^7.1.0
   # 下拉刷新
@@ -95,8 +94,8 @@ dependencies:
   # material_design_icons_flutter: ^7.0.7296
   material_design_icons_flutter:
     git:
-      url: https://github.com/bggRGjQaUbCoE/material_design_icons_flutter.git
-      ref: const
+      url: https://github.com/w1310025839-rgb/material_design_icons_flutter.git
+      ref: main
   # toast
   flutter_smart_dialog: ^4.9.8+5
   # 下滑关闭
@@ -111,9 +110,9 @@ dependencies:
   # media_kit_video: ^1.2.5 # For video rendering.
   media_kit_video:
     git:
-      url: https://github.com/bggRGjQaUbCoE/media-kit.git
+      url: https://github.com/w1310025839-rgb/media-kit.git
       path: media_kit_video
-      ref: version_1.2.5
+      ref: main
   media_kit_libs_video: 1.0.5
 
   # 媒体通知
@@ -126,8 +125,8 @@ dependencies:
   # universal_platform: ^1.1.0
   auto_orientation:
     git:
-      url: https://github.com/bggRGjQaUbCoE/auto_orientation.git
-      ref: master
+      url: https://github.com/w1310025839-rgb/auto_orientation.git
+      ref: main
   protobuf: ^6.0.0
   # animations: ^2.0.11
 
@@ -143,22 +142,21 @@ dependencies:
   # 弹幕
   # ns_danmaku:
   #   git:
-  #     url: https://github.com/bggRGjQaUbCoE/flutter_ns_danmaku.git
-  #     ref: master
+  #     url: https://github.com/w1310025839-rgb/flutter_ns_danmaku.git
+  #     ref: main
   canvas_danmaku:
     git:
-      url: https://github.com/bggRGjQaUbCoE/canvas_danmaku.git
+      url: https://github.com/w1310025839-rgb/canvas_danmaku.git
       ref: main
   # 状态栏图标控制
   # status_bar_control: ^3.2.1
   # 代理
   # system_proxy: ^0.1.0
   # pip
-  # floating: ^3.0.0
   floating:
     git:
-      url: https://github.com/bggRGjQaUbCoE/floating.git
-      ref: version-3
+      url: https://github.com/w1310025839-rgb/floating.git
+      ref: main
   # html解析
   html: ^0.15.4
   # html渲染
@@ -179,7 +177,7 @@ dependencies:
   # chat_bottom_container: ^0.2.0
   chat_bottom_container:
     git:
-      url: https://github.com/bggRGjQaUbCoE/flutter_chat_packages.git
+      url: https://github.com/w1310025839-rgb/flutter_chat_packages.git
       ref: main
       path: packages/chat_bottom_container
   image_picker: ^1.1.2
@@ -203,26 +201,25 @@ dependencies:
   re_highlight: ^0.0.3
   flutter_sortable_wrap:
     git:
-      url: https://github.com/bggRGjQaUbCoE/flutter_sortable_wrap.git
-      ref: master
+      url: https://github.com/w1310025839-rgb/flutter_sortable_wrap.git
+      ref: main
   web_socket_channel: ^3.0.3
   # image: ^4.7.1
   # window_manager: ^0.5.1
   window_manager:
     git:
-      url: https://github.com/bggRGjQaUbCoE/window_manager.git
+      url: https://github.com/w1310025839-rgb/window_manager.git
       path: packages/window_manager
       ref: main
   tray_manager: ^0.5.1
-  # file_picker: ^10.3.3
   file_picker:
     git:
-      url: https://github.com/bggRGjQaUbCoE/flutter_file_picker.git
-      ref: mod
+      url: https://github.com/w1310025839-rgb/file_picker.git
+      ref: main
   super_sliver_list:
     git:
-      url: https://github.com/bggRGjQaUbCoE/super_sliver_list.git
-      ref: mod
+      url: https://github.com/w1310025839-rgb/super_sliver_list.git
+      ref: main
   dlna_dart: ^0.1.0
   battery_plus: ^7.0.0
 
@@ -250,34 +247,34 @@ dependency_overrides:
   rxdart: ^0.28.0
   media_kit:
     git:
-      url: https://github.com/bggRGjQaUbCoE/media-kit.git
+      url: https://github.com/w1310025839-rgb/media-kit.git
       path: media_kit
-      ref: version_1.2.5
+      ref: main
   media_kit_video:
     git:
-      url: https://github.com/bggRGjQaUbCoE/media-kit.git
+      url: https://github.com/w1310025839-rgb/media-kit.git
       path: media_kit_video
-      ref: version_1.2.5
+      ref: main
   media_kit_libs_video:
     git:
-      url: https://github.com/bggRGjQaUbCoE/media-kit.git
+      url: https://github.com/w1310025839-rgb/media-kit.git
       path: libs/universal/media_kit_libs_video
-      ref: version_1.2.5
+      ref: main
   media_kit_native_event_loop:
     git:
-      url: https://github.com/bggRGjQaUbCoE/media-kit.git
+      url: https://github.com/w1310025839-rgb/media-kit.git
       path: media_kit_native_event_loop
-      ref: version_1.2.5
+      ref: main
   media_kit_libs_android_video:
     git:
-      url: https://github.com/bggRGjQaUbCoE/media-kit.git
+      url: https://github.com/w1310025839-rgb/media-kit.git
       path: libs/android/media_kit_libs_android_video
-      ref: version_1.2.5
+      ref: main
   media_kit_libs_windows_video:
     git:
-      url: https://github.com/bggRGjQaUbCoE/media-kit.git
+      url: https://github.com/w1310025839-rgb/media-kit.git
       path: libs/windows/media_kit_libs_windows_video
-      ref: version_1.2.5
+      ref: main
   font_awesome_flutter: 10.9.0
 
 dev_dependencies:
